@@ -164,6 +164,92 @@
       pointer-events: none;
       transition: opacity 0.1s;
     }
+
+    /* 모바일 컨트롤 */
+    #mobile-controls {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .ctrl-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .ctrl-btn {
+      width: 64px;
+      height: 64px;
+      background: #222;
+      border: 2px solid #555;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      active: background #444;
+    }
+
+    .ctrl-btn:active {
+      background: #444;
+      border-color: #aaa;
+    }
+
+    .ctrl-btn.wide {
+      width: 138px;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        align-items: flex-start;
+        padding: 12px 0;
+        overflow-x: hidden;
+      }
+
+      #game-wrapper {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      #left-panel {
+        flex-direction: row;
+        width: auto;
+        gap: 10px;
+      }
+
+      #left-panel .panel-box {
+        padding: 8px 14px;
+      }
+
+      #right-panel {
+        flex-direction: row;
+        width: auto;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      #controls {
+        display: none;
+      }
+
+      #mobile-controls {
+        display: flex;
+      }
+
+      #board-canvas {
+        width: 280px;
+        height: 560px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -217,6 +303,21 @@
     </div>
   </div>
 
+</div>
+
+<!-- 모바일 컨트롤 버튼 -->
+<div id="mobile-controls">
+  <div class="ctrl-row">
+    <div class="ctrl-btn" id="btn-rotate">↑</div>
+  </div>
+  <div class="ctrl-row">
+    <div class="ctrl-btn" id="btn-left">←</div>
+    <div class="ctrl-btn" id="btn-down">↓</div>
+    <div class="ctrl-btn" id="btn-right">→</div>
+  </div>
+  <div class="ctrl-row">
+    <div class="ctrl-btn wide" id="btn-drop">SPACE 즉시낙하</div>
+  </div>
 </div>
 
 <script>
@@ -539,6 +640,69 @@ document.addEventListener('keydown', e => {
   }
   drawBoard();
 });
+
+// 모바일 버튼 이벤트
+function addMobileBtn(id, action) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+
+  let interval = null;
+
+  function start(e) {
+    e.preventDefault();
+    action();
+    interval = setInterval(action, 150);
+  }
+
+  function stop(e) {
+    e.preventDefault();
+    clearInterval(interval);
+    interval = null;
+  }
+
+  btn.addEventListener('touchstart', start, { passive: false });
+  btn.addEventListener('touchend', stop, { passive: false });
+  btn.addEventListener('touchcancel', stop, { passive: false });
+  btn.addEventListener('mousedown', start);
+  btn.addEventListener('mouseup', stop);
+  btn.addEventListener('mouseleave', stop);
+}
+
+addMobileBtn('btn-left', () => {
+  if (!gameRunning || paused) return;
+  if (isValid(piece.matrix, piece.x - 1, piece.y)) { piece.x--; drawBoard(); }
+});
+
+addMobileBtn('btn-right', () => {
+  if (!gameRunning || paused) return;
+  if (isValid(piece.matrix, piece.x + 1, piece.y)) { piece.x++; drawBoard(); }
+});
+
+addMobileBtn('btn-down', () => {
+  if (!gameRunning || paused) return;
+  if (isValid(piece.matrix, piece.x, piece.y + 1)) { piece.y++; drawBoard(); }
+  else lock();
+});
+
+document.getElementById('btn-rotate').addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (!gameRunning || paused) { startGame(); return; }
+  const rot = rotateCW(piece.matrix);
+  const kicks = [0, -1, 1, -2, 2];
+  for (const k of kicks) {
+    if (isValid(rot, piece.x + k, piece.y)) {
+      piece.matrix = rot; piece.x += k; break;
+    }
+  }
+  drawBoard();
+}, { passive: false });
+
+document.getElementById('btn-drop').addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (!gameRunning || paused) { startGame(); return; }
+  hardDrop();
+  drawBoard();
+}, { passive: false });
 
 // 초기 화면 보드 그리기
 board = createBoard();
