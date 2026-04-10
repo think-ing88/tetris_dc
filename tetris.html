@@ -23,10 +23,11 @@
       align-items: flex-start;
     }
 
-    /* PC: side-col은 투명 래퍼, 안의 패널이 직접 보임 */
-    #side-col {
-      display: contents;
-    }
+    /* PC: side-col 투명 래퍼 → 자식들이 game-wrapper 플렉스에 직접 참여 */
+    #side-col { display: contents; }
+    #left-panel { order: 1; }
+    #game-container { order: 2; }
+    #right-panel { order: 3; }
 
     /* 왼쪽 패널 */
     #left-panel {
@@ -226,91 +227,77 @@
       box-shadow: 0 0 6px #ff02;
     }
 
-    /* ── 모바일 전용 ── */
+    /* ── 모바일 전용 (iPhone 14 Pro 기준: 393px) ── */
     @media (max-width: 768px) {
       body {
         align-items: flex-start;
-        padding: 10px 0 130px;
-        overflow-x: hidden;
         justify-content: center;
+        padding: 8px 6px 120px;
+        height: auto;
+        min-height: 100vh;
+        overflow-x: hidden;
       }
 
-      /* 세로 흐름 → 가로 한 줄: [사이드패널 | 보드] */
+      /* 가로 한 줄: [사이드패널(66px) | 게임보드(200px)] */
       #game-wrapper {
         flex-direction: row;
         align-items: flex-start;
-        gap: 8px;
-        padding: 0 8px;
-      }
-
-      /* 왼쪽: score/level/lines/next/highscore 세로 스택 */
-      #left-panel {
-        flex-direction: column;
-        width: 72px;
         gap: 6px;
-        flex-shrink: 0;
+        width: 100%;
+        max-width: 393px;
       }
 
-      #left-panel .panel-box {
-        padding: 6px 8px;
-      }
-
-      #left-panel .panel-box h3 {
-        font-size: 9px;
-        margin-bottom: 4px;
-      }
-
-      #left-panel .value {
-        font-size: 14px;
-      }
-
-      /* 오른쪽 패널(Next, Highscore, Controls) → 왼쪽 패널 아래로 이동 */
-      #right-panel {
+      /* side-col: 세로 스택으로 전환 */
+      #side-col {
+        display: flex !important;
         flex-direction: column;
-        width: 72px;
-        gap: 6px;
+        gap: 5px;
+        width: 66px;
         flex-shrink: 0;
-        order: -1; /* left-panel 앞에 배치 */
+        order: 1;
       }
 
-      #right-panel .panel-box {
-        padding: 6px 8px;
+      #left-panel, #right-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        width: 100%;
       }
 
-      #right-panel .panel-box h3 {
-        font-size: 9px;
-        margin-bottom: 4px;
+      .panel-box {
+        padding: 5px 6px;
       }
 
-      #right-panel .value {
-        font-size: 14px;
+      .panel-box h3 {
+        font-size: 8px;
+        letter-spacing: 1px;
+        margin-bottom: 3px;
+      }
+
+      .panel-box .value {
+        font-size: 13px;
       }
 
       #next-canvas {
-        width: 60px !important;
-        height: 50px !important;
+        width: 54px !important;
+        height: 44px !important;
       }
 
-      /* 사이드 컬럼: PC에선 숨기고 패널을 직접 표시, 모바일에선 묶음 */
-      #side-col {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+      #controls { display: none; }
+
+      /* 게임 보드 */
+      #game-container {
+        order: 2;
         flex-shrink: 0;
-        width: 72px;
-      }
-
-      #controls {
-        display: none;
-      }
-
-      #mobile-controls {
-        display: flex;
       }
 
       #board-canvas {
         width: 200px !important;
         height: 400px !important;
+      }
+
+      #mobile-controls {
+        display: flex;
       }
     }
   </style>
@@ -319,22 +306,39 @@
 
 <div id="game-wrapper">
 
-  <!-- 모바일: 사이드 컬럼 (left+right 패널 묶음) / PC: 개별 표시 -->
+  <!-- 사이드 컬럼: PC에선 투명 래퍼(display:contents), 모바일에선 flex 컬럼 -->
   <div id="side-col">
-
-  <!-- 왼쪽 패널 -->
-  <div id="left-panel">
-    <div class="panel-box">
-      <h3>Score</h3>
-      <div class="value" id="score">0</div>
+    <div id="left-panel">
+      <div class="panel-box">
+        <h3>Score</h3>
+        <div class="value" id="score">0</div>
+      </div>
+      <div class="panel-box">
+        <h3>Level</h3>
+        <div class="value" id="level">1</div>
+      </div>
+      <div class="panel-box">
+        <h3>Lines</h3>
+        <div class="value" id="lines">0</div>
+      </div>
     </div>
-    <div class="panel-box">
-      <h3>Level</h3>
-      <div class="value" id="level">1</div>
-    </div>
-    <div class="panel-box">
-      <h3>Lines</h3>
-      <div class="value" id="lines">0</div>
+    <div id="right-panel">
+      <div class="panel-box">
+        <h3>Next</h3>
+        <canvas id="next-canvas" width="116" height="90"></canvas>
+      </div>
+      <div class="panel-box">
+        <h3>Best</h3>
+        <div class="value" id="high-score">0</div>
+      </div>
+      <div id="controls">
+        <h3>Controls</h3>
+        <div class="key-row"><span class="key">←→</span><span class="key-desc">이동</span></div>
+        <div class="key-row"><span class="key">↑</span><span class="key-desc">회전</span></div>
+        <div class="key-row"><span class="key">↓</span><span class="key-desc">내리기</span></div>
+        <div class="key-row"><span class="key">Space</span><span class="key-desc">즉시낙하</span></div>
+        <div class="key-row"><span class="key">P</span><span class="key-desc">일시정지</span></div>
+      </div>
     </div>
   </div>
 
@@ -348,28 +352,6 @@
       <div class="blink">PRESS SPACE TO START</div>
     </div>
   </div>
-
-  <!-- 오른쪽 패널 -->
-  <div id="right-panel">
-    <div class="panel-box">
-      <h3>Next</h3>
-      <canvas id="next-canvas" width="116" height="90"></canvas>
-    </div>
-    <div class="panel-box">
-      <h3>High Score</h3>
-      <div class="value" id="high-score">0</div>
-    </div>
-    <div id="controls">
-      <h3>Controls</h3>
-      <div class="key-row"><span class="key">←→</span><span class="key-desc">이동</span></div>
-      <div class="key-row"><span class="key">↑</span><span class="key-desc">회전</span></div>
-      <div class="key-row"><span class="key">↓</span><span class="key-desc">내리기</span></div>
-      <div class="key-row"><span class="key">Space</span><span class="key-desc">즉시낙하</span></div>
-      <div class="key-row"><span class="key">P</span><span class="key-desc">일시정지</span></div>
-    </div>
-  </div>
-
-  </div><!-- /side-col -->
 
 </div>
 
