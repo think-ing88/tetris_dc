@@ -420,34 +420,95 @@ async function saveAndShowRanking(name, myScore) {
 function showRanking(top10, myScore, myRank) {
   const isInTop10 = myRank <= 10;
 
+  const medalColor = r => r === 1 ? '#ffd700' : r === 2 ? '#c0c0c0' : r === 3 ? '#cd7f32' : '#555';
+  const medal = r => r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : r;
+
   let rows = top10.map(e => {
-    const isMe = e.score === myScore && !isInTop10 === false;
-    const highlight = (e.rank === myRank) ? 'style="color:#ff0;text-shadow:0 0 8px #ff0"' : '';
-    return `<tr ${highlight}>
-      <td style="padding:4px 8px;text-align:center;color:${e.rank<=3?'#0ff':'#888'}">${e.rank}</td>
-      <td style="padding:4px 8px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.name}</td>
-      <td style="padding:4px 8px;text-align:right;color:#0ff">${e.score.toLocaleString()}</td>
+    const isMe = e.rank === myRank;
+    const rowStyle = isMe
+      ? 'background:rgba(255,220,0,0.1);border-left:3px solid #ff0'
+      : 'border-left:3px solid transparent';
+    const nameStyle = isMe ? 'color:#ff0;text-shadow:0 0 6px #ff0' : 'color:#ccc';
+    const scoreStyle = isMe ? 'color:#ff0;font-weight:bold' : 'color:#0ff';
+    return `<tr style="${rowStyle}">
+      <td style="padding:6px 10px;text-align:center;font-size:14px">${medal(e.rank)}</td>
+      <td style="padding:6px 8px;${nameStyle};max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.name}${isMe ? ' ◀' : ''}</td>
+      <td style="padding:6px 10px;text-align:right;${scoreStyle};font-size:13px">${e.score.toLocaleString()}</td>
     </tr>`;
   }).join('');
 
-  const myRankStr = isInTop10
-    ? ''
-    : `<p style="margin-top:10px;color:#ff0;font-size:12px;letter-spacing:1px">내 순위: <strong>${myRank}위</strong> (${myScore.toLocaleString()}점)</p>`;
+  const myRankStr = !isInTop10
+    ? `<div style="margin-top:8px;padding:8px 16px;border:1px solid #ff04;background:#ff01;border-radius:4px;color:#ff0;font-size:12px;letter-spacing:1px;text-align:center">
+        내 순위 <strong style="font-size:16px">${myRank}위</strong> &nbsp;·&nbsp; ${myScore.toLocaleString()}점
+      </div>` : '';
 
+  // 기존 overlay 숨기고 별도 모달 표시
+  overlay.style.display = 'none';
+
+  const modal = document.createElement('div');
+  modal.id = 'rank-modal';
+  modal.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,10,0.92);
+    display:flex;align-items:center;justify-content:center;
+    z-index:999;padding:16px;
+  `;
+
+  modal.innerHTML = `
+    <div style="
+      background:#080818;border:1px solid #0ff3;
+      border-radius:12px;padding:24px 20px;
+      width:100%;max-width:360px;position:relative;
+      box-shadow:0 0 40px #0ff1;
+    ">
+      <!-- 닫기 버튼 -->
+      <button onclick="closeRanking()" style="
+        position:absolute;top:12px;right:14px;
+        background:transparent;border:1px solid #0ff3;
+        color:#0ff;font-size:16px;width:28px;height:28px;
+        border-radius:50%;cursor:pointer;line-height:1;
+        font-family:Courier New,monospace;
+      ">✕</button>
+
+      <!-- 타이틀 -->
+      <h2 style="text-align:center;font-size:22px;letter-spacing:4px;color:#0ff;text-shadow:0 0 16px #0ff;margin-bottom:16px">
+        🏆 RANKING
+      </h2>
+
+      <!-- 랭킹 테이블 -->
+      <table style="border-collapse:collapse;width:100%;font-size:13px;font-family:Courier New,monospace">
+        <thead>
+          <tr style="border-bottom:1px solid #0ff2">
+            <th style="padding:6px 10px;color:#0ff6;font-size:10px;letter-spacing:1px;text-align:center">#</th>
+            <th style="padding:6px 8px;color:#0ff6;font-size:10px;letter-spacing:1px;text-align:left">NAME</th>
+            <th style="padding:6px 10px;color:#0ff6;font-size:10px;letter-spacing:1px;text-align:right">SCORE</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      ${myRankStr}
+
+      <!-- 재시작 버튼 -->
+      <button onclick="closeRanking(); startGame();" style="
+        display:block;width:100%;margin-top:16px;
+        background:#0ff1;border:1px solid #0ff4;
+        color:#0ff;padding:10px;font-family:Courier New,monospace;
+        font-size:13px;letter-spacing:2px;border-radius:6px;
+        cursor:pointer;
+      ">▶ PLAY AGAIN</button>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+}
+
+function closeRanking() {
+  const modal = document.getElementById('rank-modal');
+  if (modal) modal.remove();
+  // 닫으면 재시작 안내 오버레이 표시
   overlay.innerHTML = `
-    <h2 style="font-size:20px;letter-spacing:3px;color:#0ff;text-shadow:0 0 12px #0ff">RANKING</h2>
-    <table style="border-collapse:collapse;font-size:13px;width:220px">
-      <thead>
-        <tr style="color:#0ff8;font-size:10px;letter-spacing:1px">
-          <th style="padding:4px 8px">#</th>
-          <th style="padding:4px 8px;text-align:left">NAME</th>
-          <th style="padding:4px 8px;text-align:right">SCORE</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-    ${myRankStr}
-    <div class="blink" style="margin-top:12px">PRESS SPACE TO PLAY AGAIN</div>
+    <h2>GAME OVER</h2>
+    <div class="blink">PRESS SPACE TO PLAY AGAIN</div>
   `;
   overlay.style.display = 'flex';
 }
