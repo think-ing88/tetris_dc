@@ -370,7 +370,88 @@
   </div>
 </div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
 <script>
+// ── Firebase 초기화 ──
+const firebaseConfig = {
+  apiKey: "AIzaSyBiVLM1utmLJ5ud-eq4yUo39F6mfb-Z3jc",
+  authDomain: "tetris-1c8ff.firebaseapp.com",
+  projectId: "tetris-1c8ff",
+  storageBucket: "tetris-1c8ff.firebasestorage.app",
+  messagingSenderId: "310122642060",
+  appId: "1:310122642060:web:df0a2236186c92d02419a9"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ── 랭킹 함수 ──
+async function saveAndShowRanking(name, myScore) {
+  // 저장
+  await db.collection('scores').add({
+    name: name.trim(),
+    score: myScore,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  // 상위 10개 조회
+  const top10Snap = await db.collection('scores')
+    .orderBy('score', 'desc')
+    .limit(10)
+    .get();
+
+  const top10 = top10Snap.docs.map((doc, i) => ({
+    rank: i + 1,
+    name: doc.data().name,
+    score: doc.data().score
+  }));
+
+  // 내 순위 (10위 밖일 경우 계산)
+  const aboveSnap = await db.collection('scores')
+    .where('score', '>', myScore)
+    .get();
+  const myRank = aboveSnap.size + 1;
+
+  showRanking(top10, myScore, myRank);
+}
+
+function showRanking(top10, myScore, myRank) {
+  const isInTop10 = myRank <= 10;
+
+  let rows = top10.map(e => {
+    const isMe = e.score === myScore && !isInTop10 === false;
+    const highlight = (e.rank === myRank) ? 'style="color:#ff0;text-shadow:0 0 8px #ff0"' : '';
+    return `<tr ${highlight}>
+      <td style="padding:4px 8px;text-align:center;color:${e.rank<=3?'#0ff':'#888'}">${e.rank}</td>
+      <td style="padding:4px 8px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.name}</td>
+      <td style="padding:4px 8px;text-align:right;color:#0ff">${e.score.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+
+  const myRankStr = isInTop10
+    ? ''
+    : `<p style="margin-top:10px;color:#ff0;font-size:12px;letter-spacing:1px">내 순위: <strong>${myRank}위</strong> (${myScore.toLocaleString()}점)</p>`;
+
+  overlay.innerHTML = `
+    <h2 style="font-size:20px;letter-spacing:3px;color:#0ff;text-shadow:0 0 12px #0ff">RANKING</h2>
+    <table style="border-collapse:collapse;font-size:13px;width:220px">
+      <thead>
+        <tr style="color:#0ff8;font-size:10px;letter-spacing:1px">
+          <th style="padding:4px 8px">#</th>
+          <th style="padding:4px 8px;text-align:left">NAME</th>
+          <th style="padding:4px 8px;text-align:right">SCORE</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${myRankStr}
+    <div class="blink" style="margin-top:12px">PRESS SPACE TO PLAY AGAIN</div>
+  `;
+  overlay.style.display = 'flex';
+}
+
 const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
@@ -629,12 +710,53 @@ function startGame() {
 function endGame() {
   gameRunning = false;
   cancelAnimationFrame(animId);
+
+  const finalScore = score;
+
   overlay.innerHTML = `
-    <h2>GAME OVER</h2>
-    <p>점수: <strong style="color:#ffdd00">${score}</strong></p>
-    <div class="blink">PRESS SPACE TO RESTART</div>
+    <h2 style="font-size:22px;letter-spacing:3px;color:#ff4444;text-shadow:0 0 12px #ff4444">GAME OVER</h2>
+    <p style="color:#0ff8;font-size:13px">점수: <strong style="color:#ff0;font-size:18px">${finalScore.toLocaleString()}</strong></p>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:4px">
+      <p style="color:#888;font-size:11px;letter-spacing:1px">이름을 입력하세요</p>
+      <input id="name-input" type="text" maxlength="10" placeholder="닉네임 (최대 10자)"
+        style="background:#0ff1;border:1px solid #0ff4;color:#fff;padding:8px 12px;
+               font-family:Courier New,monospace;font-size:14px;letter-spacing:1px;
+               border-radius:4px;width:200px;text-align:center;outline:none" />
+      <button id="submit-btn"
+        style="background:#0ff2;border:1px solid #0ff5;color:#0ff;padding:8px 24px;
+               font-family:Courier New,monospace;font-size:13px;letter-spacing:2px;
+               border-radius:4px;cursor:pointer;margin-top:4px">
+        등록 &amp; 랭킹 보기
+      </button>
+      <div id="rank-loading" style="display:none;color:#888;font-size:11px;letter-spacing:1px">저장 중...</div>
+    </div>
   `;
   overlay.style.display = 'flex';
+
+  // 이름 입력 후 등록
+  const input = document.getElementById('name-input');
+  const btn = document.getElementById('submit-btn');
+  input.focus();
+
+  async function submit() {
+    const name = input.value.trim();
+    if (!name) { input.style.borderColor = '#f44'; return; }
+    btn.disabled = true;
+    document.getElementById('rank-loading').style.display = 'block';
+    btn.style.display = 'none';
+    try {
+      await saveAndShowRanking(name, finalScore);
+    } catch(e) {
+      overlay.innerHTML = `
+        <h2>GAME OVER</h2>
+        <p style="color:#f88;font-size:12px">랭킹 저장 실패</p>
+        <div class="blink">PRESS SPACE TO RESTART</div>
+      `;
+    }
+  }
+
+  btn.addEventListener('click', submit);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
 }
 
 function togglePause() {
@@ -656,6 +778,8 @@ function togglePause() {
 
 document.addEventListener('keydown', e => {
   if (e.code === 'Space') {
+    // 이름 입력 중이면 무시
+    if (document.activeElement && document.activeElement.id === 'name-input') return;
     if (!gameRunning || paused) { startGame(); return; }
     hardDrop();
     return;
